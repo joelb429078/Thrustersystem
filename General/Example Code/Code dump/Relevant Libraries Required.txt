@@ -1,0 +1,9 @@
+Relevant Libraries Required:
+
+Wire.h
+SPI.h
+nRF24L01.h
+RF24.h
+MS5837.h (Bar30 Sensor Library by Bluerobotics)
+EEPROM.h 
+AccelStepper.h (A4988 Stepper Motor library for NEMA 17) 
