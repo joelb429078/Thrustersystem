@@ -1,0 +1,117 @@
+import smbus2
+import time
+import numpy as np
+
+# Initialize I2C addresses for the two IMUs
+IMU1_ADDRESS = 0x68
+IMU2_ADDRESS = 0x69
+
+# Setup for the I2C bus
+bus = smbus2.SMBus(1)
+
+# Kalman Filter parameters
+Q_angle = 0.001   # Process noise variance for the accelerometer
+Q_bias = 0.003    # Process noise variance for the gyroscope bias
+R_measure = 0.03  # Measurement noise variance
+
+# Kalman filter variables
+angle = 0.0       # The angle calculated by the Kalman filter
+bias = 0.0        # The gyroscope bias calculated by the Kalman filter
+P = np.zeros((2, 2))  # Error covariance matrix
+
+# Helper functions to read IMU data
+def read_imu_data(address):
+    accel_x = read_word_2c(address, 0x3B)
+    accel_y = read_word_2c(address, 0x3D)
+    accel_z = read_word_2c(address, 0x3F)
+    gyro_x = read_word_2c(address, 0x43)
+    gyro_y = read_word_2c(address, 0x45)
+    gyro_z = read_word_2c(address, 0x47)
+    return np.array([accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z])
+
+def read_word_2c(address, reg):
+    high = bus.read_byte_data(address, reg)
+    low = bus.read_byte_data(address, reg + 1)
+    val = (high << 8) + low
+    if val >= 0x8000:
+        return -((65535 - val) + 1)
+    else:
+        return val
+
+# Kalman filter update
+def kalman_update(new_angle, new_rate, dt):
+    global angle, bias, P
+    rate = new_rate - bias
+    angle += dt * rate
+
+    # Update error covariance matrix
+    P[0][0] += dt * (dt * P[1][1] - P[0][1] - P[1][0] + Q_angle)
+    P[0][1] -= dt * P[1][1]
+    P[1][0] -= dt * P[1][1]
+    P[1][1] += Q_bias * dt
+
+    # Kalman gain
+    S = P[0][0] + R_measure
+    K = [P[0][0] / S, P[1][0] / S]
+
+    # Update estimate with measurement
+    y = new_angle - angle
+    angle += K[0] * y
+    bias += K[1] * y
+
+    # Update error covariance matrix
+    P[0][0] -= K[0] * P[0][0]
+    P[0][1] -= K[0] * P[0][1]
+    P[1][0] -= K[1] * P[0][0]
+    P[1][1] -= K[1] * P[0][1]
+
+    return angle
+
+# Function to compute tilt angle from accelerometer data
+def compute_tilt_angle(accel_data):
+    accel_x, accel_y, accel_z = accel_data[:3]
+    pitch = np.arctan2(accel_y, np.sqrt(accel_x**2 + accel_z**2)) * (180 / np.pi)
+    roll = np.arctan2(-accel_x, accel_z) * (180 / np.pi)
+    return pitch, roll
+
+# Initialize IMUs
+def initialize_imu(address):
+    bus.write_byte_data(address, 0x6B, 0)
+
+initialize_imu(IMU1_ADDRESS)
+initialize_imu(IMU2_ADDRESS)
+
+# Initial timestamp
+last_time = time.time()
+
+try:
+    while True:
+        # Calculate time step
+        current_time = time.time()
+        dt = current_time - last_time
+        last_time = current_time
+
+        # Read data from both IMUs
+        imu1_data = read_imu_data(IMU1_ADDRESS)
+        imu2_data = read_imu_data(IMU2_ADDRESS)
+
+        # Compute tilt angles for each IMU from accelerometer data
+        pitch1, _ = compute_tilt_angle(imu1_data)
+        pitch2, _ = compute_tilt_angle(imu2_data)
+
+        # Average pitch from both IMUs
+        avg_pitch = (pitch1 + pitch2) / 2
+
+        # Apply Kalman filter for more accurate angle estimation
+        fused_pitch = kalman_update(avg_pitch, imu1_data[3], dt)
+
+        # Output the fused data
+        print(f"Fused Pitch (Kalman): {fused_pitch:.2f}")
+
+        # Delay for 10ms (assuming 100Hz reading rate)
+        time.sleep(0.01)
+
+except KeyboardInterrupt:
+    print("Terminated by user")
+finally:
+    bus.close()
