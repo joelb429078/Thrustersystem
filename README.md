@@ -1,6 +1,6 @@
-# Experimental Pixhawk Control with Nvidia Jetson Nano
+# Experimental Nvidia Jetson Nano
 
-This repository contains the experimental code developed by me(Joel) and Aaron to enable control of a Pixhawk flight controller using an Nvidia Jetson Nano. To break it down it establishes communication between the Jetson Nano and Pixhawk via MAVLink and the corresponding python library for it, allowing for operations such as arming the vehicle and requesting specific telemetry data. This is still a work in progress but will receive continual updates from myself and Aaron over the coming weeks.
+This repository contains the experimental code developed by me(Joel) and Aaron to enable control of the ROV using an Nvidia Jetson Nano. To break it down it establishes communication between the Jetson Nano and Pixhawk via MAVLink and the corresponding python library for it, allowing for operations such as arming the vehicle and requesting specific telemetry data. This is still a work in progress but will receive continual updates from myself and Aaron over the coming weeks.
 
 ## Table of Contents
 
@@ -29,15 +29,13 @@ To begin with, the goal of this project is to develop a comprehensive control sy
 
 The provided Python script performs the following actions:
 
-1. **MAVLink Connection**: Connects to the Pixhawk flight controller via MAVLink over TCP.
-2. **Heartbeat Wait**: Waits for a heartbeat message to ensure communication is established.
-3. **Vehicle Arming**: Sends a command to arm the vehicle.
-4. **Data Request**: Defines functions to request specific MAVLink messages at set intervals and to handle received data.
-5. **Data Logging**: Logs the requested data into a file for further analysis.
+1. **Heartbeat Wait**: Waits for a heartbeat message to ensure communication is established.
+2. **Vehicle Arming**: Sends a command to arm the vehicle.
+3. **Data Request**: Defines functions to request specific messages at set intervals and to handle received data.
+4. **Data Logging**: Logs the requested data into a file for further analysis.
 
 ### Key Components
 
-- **`mavutil.mavlink_connection`**: Establishes the MAVLink connection.
 - **`master.wait_heartbeat()`**: Waits for the Pixhawk to send a heartbeat message.
 - **Arming Command**: Uses `command_long_send` to arm the vehicle.
 - **Message Interval Request**: `request_message_interval` function requests specific telemetry data.
